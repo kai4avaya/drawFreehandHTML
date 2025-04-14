@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freehand Component Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .drawing-container {
+            position: relative;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            height: 300px;
+            background-color: white;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #3367d6;
+        }
+
+        .clear-button {
+            background-color: #db4437;
+        }
+
+        .clear-button:hover {
+            background-color: #c53929;
+        }
+
+        .result-container {
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            min-height: 300px;
+            position: relative;
+        }
+
+        .custom-component {
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .custom-component textarea {
+            position: absolute;
+            resize: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: inherit;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-sizing: border-box;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .custom-component button {
+            position: absolute;
+            background-color: #0f9d58;
+            white-space: nowrap;
+        }
+
+        .custom-component button:hover {
+            background-color: #0b8043;
+        }
+
+        .instructions {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .debug-outline {
+            position: absolute;
+            border: 1px dashed red;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Freehand Component Creator</h1>
+        
+        <div class="instructions">
+            <p><strong>Instructions:</strong> Draw a shape by clicking and dragging on the canvas below. Once you're satisfied with your shape, click "Create Component" to generate a textarea with a send button inside your custom shape.</p>
+        </div>
+        
+        <div class="drawing-container">
+            <svg id="drawing-svg">
+                <path id="drawing-path" stroke="#4285f4" stroke-width="3" fill="none"></path>
+            </svg>
+        </div>
+        
+        <div class="controls">
+            <button id="clear-button" class="clear-button">Clear</button>
+            <button id="create-button">Create Component</button>
+            <button id="simplify-button">Simplify Shape</button>
+        </div>
+        
+        <h2>Your Custom Component:</h2>
+        <div class="result-container" id="result-container"></div>
+    </div>
+
+    <script>
+        // Main variables
+        const svg = document.getElementById('drawing-svg');
+        const path = document.getElementById('drawing-path');
+        const clearButton = document.getElementById('clear-button');
+        const createButton = document.getElementById('create-button');
+        const simplifyButton = document.getElementById('simplify-button');
+        const resultContainer = document.getElementById('result-container');
+        
+        let isDrawing = false;
+        let points = [];
+        let pathData = '';
+        
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            const point = getPoint(e);
+            points = [point];
+            pathData = `M${point.x},${point.y}`;
+            path.setAttribute('d', pathData);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const point = getPoint(e);
+            
+            // Add some minimal distance check to avoid too many points
+            const lastPoint = points[points.length - 1];
+            const distance = Math.sqrt(
+                Math.pow(point.x - lastPoint.x, 2) + 
+                Math.pow(point.y - lastPoint.y, 2)
+            );
+            
+            if (distance > 5) {
+                points.push(point);
+                
+                // Add point to path
+                pathData += ` L${point.x},${point.y}`;
+                path.setAttribute('d', pathData);
+            }
+        }
+        
+        function stopDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            // Close the path if needed
+            if (points.length > 2) {
+                // Check if end point is close to start point
+                const startPoint = points[0];
+                const endPoint = points[points.length - 1];
+                const distance = Math.sqrt(
+                    Math.pow(endPoint.x - startPoint.x, 2) + 
+                    Math.pow(endPoint.y - startPoint.y, 2)
+                );
+                
+                if (distance < 30) {
+                    // Replace last point with first point to ensure perfect closure
+                    points[points.length - 1] = startPoint;
+                    
+                    // Rebuild path data
+                    pathData = `M${startPoint.x},${startPoint.y}`;
+                    for (let i = 1; i < points.length; i++) {
+                        pathData += ` L${points[i].x},${points[i].y}`;
+                    }
+                }
+                
+                pathData += ' Z';
+                path.setAttribute('d', pathData);
+            }
+        }
+        
+        function getPoint(e) {
+            const rect = svg.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+        
+        function clearDrawing() {
+            path.setAttribute('d', '');
+            points = [];
+            pathData = '';
+        }
+        
+        // Simplify the shape by reducing points
+        function simplifyShape() {
+            if (points.length < 5) return; // Need at least 5 points to simplify
+            
+            // Simple Douglas-Peucker-inspired algorithm
+            const tolerance = 5; // Tolerance value in pixels
+            const newPoints = [points[0]]; // Always keep the first point
+            
+            for (let i = 1; i < points.length - 1; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                const next = points[i + 1];
+                
+                // Calculate if this point is significant enough to keep
+                const dx = next.x - prev.x;
+                const dy = next.y - prev.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                
+                if (length < 1e-7) continue; // Avoid division by zero
+                
+                // Calculate distance from point to line
+                const distance = Math.abs((dy * curr.x - dx * curr.y + next.x * prev.y - next.y * prev.x) / length);
+                
+                if (distance > tolerance) {
+                    newPoints.push(curr);
+                }
+            }
+            
+            newPoints.push(points[points.length - 1]); // Always keep the last point
+            
+            // Rebuild path from simplified points
+            points = newPoints;
+            pathData = `M${points[0].x},${points[0].y}`;
+            
+            for (let i = 1; i < points.length; i++) {
+                pathData += ` L${points[i].x},${points[i].y}`;
+            }
+            
+            pathData += ' Z';
+            path.setAttribute('d', pathData);
+        }
+        
+        // Convert SVG path to polygon points for clip-path
+        function pathToPolygon() {
+            if (points.length < 3) return null;
+            
+            // Generate polygon points for clip-path
+            return points.map(p => 
+                `${(p.x / svg.clientWidth) * 100}% ${(p.y / svg.clientHeight) * 100}%`
+            ).join(', ');
+        }
+        
+        // Calculate bounds of the drawing
+        function calculateBounds() {
+            if (points.length === 0) return { minX: 0, minY: 0, maxX: 200, maxY: 200, width: 200, height: 200 };
+            
+            const xValues = points.map(p => p.x);
+            const yValues = points.map(p => p.y);
+            
+            const minX = Math.min(...xValues);
+            const maxX = Math.max(...xValues);
+            const minY = Math.min(...yValues);
+            const maxY = Math.max(...yValues);
+            
+            return {
+                minX,
+                minY,
+                maxX,
+                maxY,
+                width: maxX - minX,
+                height: maxY - minY,
+                centerX: (minX + maxX) / 2,
+                centerY: (minY + maxY) / 2
+            };
+        }
+
+        // Calculate the largest rectangle that can fit within the shape
+        function calculateInnerRectangle(bounds) {
+            // A simple approach - take a percentage of the bounding box
+            // This is a heuristic that works reasonably well for many shapes
+            const padding = 0.2; // 20% padding from each edge
+            
+            const innerWidth = bounds.width * (1 - 2 * padding);
+            const innerHeight = bounds.height * (1 - 2 * padding);
+            
+            return {
+                x: bounds.minX + bounds.width * padding,
+                y: bounds.minY + bounds.height * padding,
+                width: innerWidth,
+                height: innerHeight
+            };
+        }
+        
+        // Create the custom component with textarea and send button
+        function createComponent() {
+            if (points.length < 3) {
+                alert('Please draw a complete shape first');
+                return;
+            }
+            
+            // Clear previous results
+            resultContainer.innerHTML = '';
+            
+            // Get polygon points for clip-path
+            const polygonPoints = pathToPolygon();
+            
+            // Calculate bounds
+            const bounds = calculateBounds();
+            const innerRect = calculateInnerRectangle(bounds);
+            
+            // Create component container with clip-path
+            const component = document.createElement('div');
+            component.className = 'custom-component';
+            component.style.clipPath = `polygon(${polygonPoints})`;
+            
+            // Set component dimensions based on the drawing
+            component.style.width = `${bounds.width + 40}px`;
+            component.style.height = `${bounds.height + 40}px`;
+            component.style.backgroundColor = '#e8f0fe';
+            component.style.border = '2px solid #4285f4';
+            
+            // Create textarea with optimized positioning
+            const textarea = document.createElement('textarea');
+            textarea.placeholder = 'Type your message here...';
+            
+            // Set textarea dimensions to fit inside the shape
+            const textareaHeight = innerRect.height - 40; // Leave space for button
+            
+            textarea.style.left = `${innerRect.x - bounds.minX + 10}px`;
+            textarea.style.top = `${innerRect.y - bounds.minY + 10}px`;
+            textarea.style.width = `${innerRect.width - 20}px`;
+            textarea.style.height = `${textareaHeight - 20}px`;
+            
+            // Create send button
+            const sendButton = document.createElement('button');
+            sendButton.textContent = 'Send';
+            
+            // Position button at the bottom of the textarea
+            sendButton.style.left = `${innerRect.x - bounds.minX + innerRect.width - 70}px`;
+            sendButton.style.top = `${innerRect.y - bounds.minY + textareaHeight}px`;
+            sendButton.style.width = '70px';
+            
+            sendButton.addEventListener('click', () => {
+                if (textarea.value.trim()) {
+                    alert(`Message sent: ${textarea.value}`);
+                    textarea.value = '';
+                } else {
+                    alert('Please type a message first');
+                }
+            });
+            
+            // Add elements to component
+            component.appendChild(textarea);
+            component.appendChild(sendButton);
+            resultContainer.appendChild(component);
+            
+            // Optional: Add visual debugging outline to show the inner rectangle
+            // const debugOutline = document.createElement('div');
+            // debugOutline.className = 'debug-outline';
+            // debugOutline.style.left = `${innerRect.x - bounds.minX + 10}px`;
+            // debugOutline.style.top = `${innerRect.y - bounds.minY + 10}px`;
+            // debugOutline.style.width = `${innerRect.width - 20}px`;
+            // debugOutline.style.height = `${innerRect.height - 20}px`;
+            // component.appendChild(debugOutline);
+        }
+        
+        // Event listeners
+        svg.addEventListener('mousedown', startDrawing);
+        svg.addEventListener('mousemove', draw);
+        svg.addEventListener('mouseup', stopDrawing);
+        svg.addEventListener('mouseleave', stopDrawing);
+        
+        // Touch support for mobile devices
+        svg.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDrawing(e.touches[0]);
+        });
+        
+        svg.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e.touches[0]);
+        });
+        
+        svg.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopDrawing();
+        });
+        
+        clearButton.addEventListener('click', clearDrawing);
+        createButton.addEventListener('click', createComponent);
+        simplifyButton.addEventListener('click', simplifyShape);
+    </script>
+</body>
+</html>
