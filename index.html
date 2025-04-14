@@ -63,10 +63,40 @@
         .custom-component button:hover {
             background-color: #3267d6;
         }
+        .instructions {
+            background-color: #fff; /* White background */
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .instructions h1 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+            color: #333;
+        }
+        .instructions p {
+            margin-bottom: 0;
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="instructions">
+            <h1>Weird Shape HTML Generator</h1>
+                <div style="display: inline-block; text-align: left;">
+                    1. Draw a closed shape in the box below.<br>
+                    2. Click 'Create Component'.<br>
+                    3. Type in the component.<br>
+                    4. Repeat if desired (check 'Don't refresh').<br>
+                    5. Download your creation.
+                </div>
+            </p>
+        </div>
         <div class="drawing-container">
             <svg id="drawingCanvas"></svg>
         </div>
